@@ -294,4 +294,17 @@ export default function App() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', width: '80%', maxWidth: '300px', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
             <h3 style={{ margin: '0 0 10px', color: '#4c1d95', fontSize: '16px' }}>관리자 인증</h3>
-            <p style={{ margin: '0 0 15px', fontSize
+            <p style={{ margin: '0 0 15px', fontSize: '13px', color: '#666' }}>수정하려면 관리자 비밀번호를 입력하세요.</p>
+            <form onSubmit={handlePasswordSubmit}>
+              <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="비밀번호" autoFocus aria-label="관리자 비밀번호" style={{ width: '100%', padding: '10px', marginBottom: '12px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" onClick={() => { setShowPasswordModal(false); setPasswordInput(''); }} style={{ flex: 1, padding: '8px', background: '#eee', color: '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>취소</button>
+                <button type="submit" style={{ flex: 1, padding: '8px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>확인</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
