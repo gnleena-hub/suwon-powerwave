@@ -82,7 +82,7 @@ export default function App() {
     <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif', backgroundColor: '#f8f5fd', minHeight: '100vh', paddingBottom: '40px', boxSizing: 'border-box' }}>
       {/* 상단 헤더 */}
       <div style={{ backgroundColor: '#7c3aed', color: '#fff', padding: '20px', textAlign: 'center', borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)' }}>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>2026 수원 파워웨이브 제자양육</h1>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>2026 수원 파워웨이브</h1>
         <p style={{ margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }}>청소년부 공식 웹 앱</p>
       </div>
 
