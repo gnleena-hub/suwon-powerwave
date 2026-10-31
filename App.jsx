@@ -1,309 +1,395 @@
 import React, { useState } from 'react';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('worship');
-  
-  // 관리자 인증 상태 (비밀번호: 0617)
-  const [isEditing, setIsEditing] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [pendingTab, setPendingTab] = useState(null);
+const ADMIN_PASSWORD = '0617';
+const GRADES = ['1', '2', '3'];
+const DEPTS = [
+  { key: 'middle', label: '중등부' },
+  { key: 'high', label: '고등부' },
+];
 
-  const handleEditClick = (tabName) => {
-    if (isEditing) {
-      setIsEditing(false);
-    } else {
-      setPendingTab(tabName);
-      setPasswordInput('');
-      setShowPasswordModal(true);
-    }
-  };
+const ICON_PATHS = {
+  book: 'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z',
+  play: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM10 8.5l5 3.5-5 3.5z',
+  mic: 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3',
+  message: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+  instagram: 'M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zM16 11.4A4 4 0 1 1 12.6 8 4 4 0 0 1 16 11.4zM17.5 6.5h.01',
+  user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
+  x: 'M18 6 6 18M6 6l12 12',
+  plus: 'M12 5v14M5 12h14',
+  check: 'M20 6 9 17l-5-5',
+};
 
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-    if (passwordInput === '0617') {
-      setIsEditing(true);
-      setShowPasswordModal(false);
-      setPasswordInput('');
-      alert('관리자 인증이 완료되었습니다. 수정 모드가 활성화됩니다.');
-    } else {
-      alert('비밀번호가 올바르지 않습니다.');
-      setPasswordInput('');
-    }
-  };
+function Icon({ name, size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
-  // 주일 예배 상태
-  const [worshipData, setWorshipData] = useState({
-    theme: '은혜와 진리 안에서 자라가는 청소년',
-    hymns: ['주 이름 찬양', '내 마음을 가득 채운'],
-    bibleBook: '요한복음',
-    bibleChapter: '3',
-    bibleVerse: '16',
-    announcement: '다음 주일은 청소년부 연합 찬양예배로 드립니다.',
-    instagram: 'https://instagram.com',
-    breadImage: null
-  });
+const initialTeachers = () => ({
+  middle: { '1': { '1-1': '' }, '2': { '2-1': '' }, '3': { '3-1': '' } },
+  high: { '1': { '1-1': '' }, '2': { '2-1': '' }, '3': { '3-1': '' } },
+});
 
-  // 교사 탭 상태 (중등부/고등부 부서 분류, 학년별 반 및 교사 이름)
-  const [teacherData, setTeacherData] = useState({
-    middle: {
-      '1': { '1-1': ['김교사', '이교사'] },
-      '2': { '2-1': ['박교사'] },
-      '3': { '3-1': ['정교사'] }
-    },
-    high: {
-      '1': { '1-1': ['최교사'] },
-      '2': { '2-1': ['강교사'] },
-      '3': { '3-1': ['조교사'] }
-    }
-  });
-  const [selectedDeptTeacher, setSelectedDeptTeacher] = useState('middle');
-  const [selectedGradeTeacher, setSelectedGradeTeacher] = useState('1');
-  const [selectedClassTeacher, setSelectedClassTeacher] = useState('1-1');
+const initialStudents = () => ({
+  middle: { '1': { '1-1': [] }, '2': { '2-1': [] }, '3': { '3-1': [] } },
+  high: { '1': { '1-1': [] }, '2': { '2-1': [] }, '3': { '3-1': [] } },
+});
 
-  // 학생 탭 상태 (중등부/고등부 및 학년별 독립적인 반 목록 관리)
-  const [studentData, setStudentData] = useState({
-    middle: {
-      '1': { classes: ['1-1', '1-2'], students: { '1-1': ['김민수', '이지은'], '1-2': ['박서준'] } },
-      '2': { classes: ['2-1'], students: { '2-1': ['정우진'] } },
-      '3': { classes: ['3-1'], students: { '3-1': ['한지우'] } }
-    },
-    high: {
-      '1': { classes: ['1-1'], students: { '1-1': ['오하은'] } },
-      '2': { classes: ['2-1'], students: { '2-1': ['윤도현'] } },
-      '3': { classes: ['3-1'], students: { '3-1': ['강서윤'] } }
-    }
-  });
-  const [selectedDeptStudent, setSelectedDeptStudent] = useState('middle');
-  const [selectedGradeStudent, setSelectedGradeStudent] = useState('1');
-  const [selectedClassStudent, setSelectedClassStudent] = useState('1-1');
+const nextClassName = (grade, classes) => {
+  const nums = Object.keys(classes).map((c) => Number(c.split('-')[1]) || 0);
+  return `${grade}-${(nums.length ? Math.max(...nums) : 0) + 1}`;
+};
+
+function SectionHead({ title, subtitle, isEditing, onEdit }) {
+  return (
+    <div className="section-head">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+      <button type="button" className={`edit-btn${isEditing ? ' on' : ''}`} onClick={onEdit}>
+        <Icon name={isEditing ? 'check' : 'edit'} size={14} />
+        {isEditing ? '완료' : '수정'}
+      </button>
+    </div>
+  );
+}
+
+function DeptToggle({ value, onChange }) {
+  return (
+    <div className="dept" role="tablist" aria-label="부서 선택">
+      {DEPTS.map((d) => (
+        <button key={d.key} type="button" role="tab" aria-selected={value === d.key} className={`seg${value === d.key ? ' active' : ''}`} onClick={() => onChange(d.key)}>
+          {d.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InfoCard({ icon, label, accent, children }) {
+  return (
+    <section className="card info-card" style={{ '--accent': accent }}>
+      <div className="label">
+        <Icon name={icon} />
+        {label}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function WorshipTab({ data, setData, isEditing, onEdit }) {
+  const update = (key) => (e) => setData({ ...data, [key]: e.target.value });
+  const hymns = data.hymns.split('\n').map((h) => h.trim()).filter(Boolean);
+  const instagramHref = /^https?:\/\//.test(data.instagram) ? data.instagram : `https://${data.instagram}`;
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', fontFamily: 'sans-serif', backgroundColor: '#f8f5fd', minHeight: '100vh', paddingBottom: '40px', boxSizing: 'border-box' }}>
-      {/* 상단 헤더 */}
-      <div style={{ backgroundColor: '#7c3aed', color: '#fff', padding: '20px', textAlign: 'center', borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)' }}>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>2026 수원 파워웨이브</h1>
-        <p style={{ margin: '5px 0 0', fontSize: '13px', opacity: 0.9 }}>청소년부 공식 웹 앱</p>
-      </div>
+    <>
+      <SectionHead title="이번 주 예배" subtitle="하나님을 알아가는 믿음의 성장" isEditing={isEditing} onEdit={onEdit} />
+      <div className="stack">
+        <InfoCard icon="book" label="주제" accent="#7e57c2">
+          {isEditing ? (
+            <input className="field" value={data.theme} onChange={update('theme')} placeholder="이번 주 예배 주제" aria-label="주제" />
+          ) : data.theme ? (
+            <div className="value lg">{data.theme}</div>
+          ) : (
+            <div className="value lg">등록된 주제가 없습니다.</div>
+          )}
+        </InfoCard>
 
-      {/* 탭 네비게이션 */}
-      <div style={{ display: 'flex', justifyContent: 'space-around', backgroundColor: '#fff', padding: '10px', margin: '15px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-        <button onClick={() => { setActiveTab('worship'); setIsEditing(false); }} style={{ flex: 1, padding: '10px', border: 'none', background: activeTab === 'worship' ? '#7c3aed' : 'transparent', color: activeTab === 'worship' ? '#fff' : '#666', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>주일 예배</button>
-        <button onClick={() => { setActiveTab('teacher'); setIsEditing(false); }} style={{ flex: 1, padding: '10px', border: 'none', background: activeTab === 'teacher' ? '#7c3aed' : 'transparent', color: activeTab === 'teacher' ? '#fff' : '#666', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>교사</button>
-        <button onClick={() => { setActiveTab('student'); setIsEditing(false); }} style={{ flex: 1, padding: '10px', border: 'none', background: activeTab === 'student' ? '#7c3aed' : 'transparent', color: activeTab === 'student' ? '#fff' : '#666', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}>학생</button>
-      </div>
+        <InfoCard icon="play" label="찬양" accent="#ec4899">
+          {isEditing ? (
+            <>
+              <textarea className="field" value={data.hymns} onChange={update('hymns')} placeholder={'찬양 제목을 한 줄에 하나씩 입력하세요'} aria-label="찬양" />
+              <div className="hint">한 줄에 한 곡씩 입력하세요.</div>
+            </>
+          ) : hymns.length ? (
+            <ol className="hymn-list">
+              {hymns.map((h, i) => (
+                <li key={`${h}-${i}`}>
+                  <span className="num">{i + 1}</span>
+                  {h}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="empty">등록된 찬양이 없습니다.</div>
+          )}
+        </InfoCard>
 
-      {/* 컨텐츠 영역 */}
-      <div style={{ padding: '0 15px' }}>
-        {/* 주일 예배 탭 */}
-        {activeTab === 'worship' && (
-          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h2 style={{ margin: 0, color: '#4c1d95', fontSize: '18px' }}>📖 주일 예배 안내</h2>
-              <button onClick={() => handleEditClick('worship')} style={{ padding: '6px 12px', background: isEditing ? '#dc2626' : '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                {isEditing ? '수정 완료' : '수정 (비밀번호)'}
+        <InfoCard icon="mic" label="말씀" accent="#60a5fa">
+          {isEditing ? (
+            <textarea className="field" value={data.sermon} onChange={update('sermon')} placeholder="본문 및 말씀 요약" aria-label="말씀" />
+          ) : data.sermon ? (
+            <div className="value">{data.sermon}</div>
+          ) : (
+            <div className="value" style={{ fontSize: 14 }}>등록된 말씀 요약이 없습니다.</div>
+          )}
+        </InfoCard>
+
+        <InfoCard icon="message" label="광고" accent="#4ade80">
+          {isEditing ? (
+            <textarea className="field" value={data.announcement} onChange={update('announcement')} placeholder="이번 주 광고" aria-label="광고" />
+          ) : (
+            <div className="inner-box">{data.announcement || '이번 주 광고가 없습니다.'}</div>
+          )}
+        </InfoCard>
+
+        <InfoCard icon="instagram" label="파워웨이브 인스타" accent="#a855f7">
+          {isEditing ? (
+            <input className="field" value={data.instagram} onChange={update('instagram')} placeholder="https://instagram.com/..." aria-label="인스타그램 링크" />
+          ) : data.instagram ? (
+            <a className="link" href={instagramHref} target="_blank" rel="noopener noreferrer">{data.instagram}</a>
+          ) : (
+            <div className="empty">등록된 인스타그램 링크가 없습니다.</div>
+          )}
+        </InfoCard>
+      </div>
+    </>
+  );
+}
+
+function TeacherTab({ data, setData, isEditing, onEdit }) {
+  const [dept, setDept] = useState('middle');
+  const deptLabel = DEPTS.find((d) => d.key === dept).label;
+
+  const setClass = (grade, cls, value) => {
+    setData({ ...data, [dept]: { ...data[dept], [grade]: { ...data[dept][grade], [cls]: value } } });
+  };
+  const addClass = (grade) => setClass(grade, nextClassName(grade, data[dept][grade]), '');
+  const removeClass = (grade, cls) => {
+    const { [cls]: _removed, ...rest } = data[dept][grade];
+    setData({ ...data, [dept]: { ...data[dept], [grade]: rest } });
+  };
+
+  return (
+    <>
+      <SectionHead title="교사 조직도" subtitle="학부모님을 위한 반별 담당 교사 안내" isEditing={isEditing} onEdit={onEdit} />
+      <DeptToggle value={dept} onChange={setDept} />
+      {GRADES.map((grade) => (
+        <section key={grade} className="grade">
+          <h3 className="grade-title">{`${deptLabel} ${grade}학년`}</h3>
+          <div className="class-grid">
+            {Object.entries(data[dept][grade]).map(([cls, teacher]) => (
+              <article key={cls} className="card class-card">
+                <span className="badge">{cls}</span>
+                {isEditing ? (
+                  <>
+                    <button type="button" className="icon-btn" onClick={() => removeClass(grade, cls)} aria-label={`${cls}반 삭제`}>
+                      <Icon name="x" size={14} />
+                    </button>
+                    <input className="field" style={{ marginTop: 12, textAlign: 'center' }} value={teacher} onChange={(e) => setClass(grade, cls, e.target.value)} placeholder="교사 이름" aria-label={`${cls}반 담당 교사`} />
+                  </>
+                ) : (
+                  <div className={`teacher-name${teacher ? '' : ' vacant'}`}>
+                    <span style={{ color: 'var(--primary)', display: 'grid' }}><Icon name="user" /></span>
+                    {teacher || '공석'}
+                  </div>
+                )}
+              </article>
+            ))}
+            {isEditing && (
+              <button type="button" className="add-card" onClick={() => addClass(grade)}>
+                <Icon name="plus" size={18} />
+                반 추가
               </button>
-            </div>
-
-            {isEditing ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                  예배 주제:
-                  <input type="text" value={worshipData.theme} onChange={(e) => setWorshipData({...worshipData, theme: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px' }} />
-                </label>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                  찬양 목록 (쉼표로 구분):
-                  <input type="text" value={worshipData.hymns.join(', ')} onChange={(e) => setWorshipData({...worshipData, hymns: e.target.value.split(',').map(s => s.trim())})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px' }} />
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <label style={{ flex: 1, fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                    성경 책:
-                    <input type="text" value={worshipData.bibleBook} onChange={(e) => setWorshipData({...worshipData, bibleBook: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px' }} />
-                  </label>
-                  <label style={{ width: '70px', fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                    장:
-                    <input type="text" value={worshipData.bibleChapter} onChange={(e) => setWorshipData({...worshipData, bibleChapter: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px' }} />
-                  </label>
-                  <label style={{ width: '70px', fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                    절:
-                    <input type="text" value={worshipData.bibleVerse} onChange={(e) => setWorshipData({...worshipData, bibleVerse: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px' }} />
-                  </label>
-                </div>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#333' }}>
-                  광고 및 소식:
-                  <textarea value={worshipData.announcement} onChange={(e) => setWorshipData({...worshipData, announcement: e.target.value})} style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px', height: '60px' }} />
-                </label>
-              </div>
-            ) : (
-              <div>
-                <div style={{ backgroundColor: '#f3e8ff', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
-                  <strong>오늘의 주제:</strong> {worshipData.theme}
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <strong>성경말씀:</strong> {worshipData.bibleBook} {worshipData.bibleChapter}장 {worshipData.bibleVerse}절
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <strong>찬양콘티:</strong>
-                  <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-                    {worshipData.hymns.map((h, i) => <li key={i}>{h}</li>)}
-                  </ul>
-                </div>
-                <div style={{ backgroundColor: '#faf5ff', padding: '12px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
-                  <strong>공지사항:</strong> {worshipData.announcement}
-                </div>
-              </div>
             )}
           </div>
-        )}
+        </section>
+      ))}
+    </>
+  );
+}
 
-        {/* 교사 탭 */}
-        {activeTab === 'teacher' && (
-          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h2 style={{ margin: 0, color: '#4c1d95', fontSize: '18px' }}>👩‍🏫 교사 및 반 배정</h2>
-              <button onClick={() => handleEditClick('teacher')} style={{ padding: '6px 12px', background: isEditing ? '#dc2626' : '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                {isEditing ? '수정 완료' : '수정 (비밀번호)'}
-              </button>
-            </div>
+function StudentClassRow({ grade, cls, students, isEditing, onAdd, onRemoveStudent, onRemoveClass }) {
+  const [name, setName] = useState('');
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onAdd(trimmed);
+    setName('');
+  };
 
-            {/* 부서 선택 */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <button onClick={() => setSelectedDeptTeacher('middle')} style={{ flex: 1, padding: '8px', background: selectedDeptTeacher === 'middle' ? '#7c3aed' : '#eee', color: selectedDeptTeacher === 'middle' ? '#fff' : '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>중등부</button>
-              <button onClick={() => setSelectedDeptTeacher('high')} style={{ flex: 1, padding: '8px', background: selectedDeptTeacher === 'high' ? '#7c3aed' : '#eee', color: selectedDeptTeacher === 'high' ? '#fff' : '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>고등부</button>
-            </div>
-
-            {/* 학년 선택 */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '15px' }}>
-              {['1', '2', '3'].map((grade) => (
-                <button key={grade} onClick={() => { setSelectedGradeTeacher(grade); setSelectedClassTeacher(`${grade}-1`); }} style={{ flex: 1, padding: '6px', background: selectedGradeTeacher === grade ? '#ddd' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{grade}학년</button>
-              ))}
-            </div>
-
-            {/* 반 선택 */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '5px' }}>반 선택:</label>
-              <select value={selectedClassTeacher} onChange={(e) => setSelectedClassTeacher(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}>
-                {Object.keys(teacherData[selectedDeptTeacher][selectedGradeTeacher] || {}).map((cls) => (
-                  <option key={cls} value={cls}>{cls}반</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 교사 명단 */}
-            <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '10px' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#333' }}>{selectedClassTeacher}반 교사 명단</h4>
-              <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                {(teacherData[selectedDeptTeacher][selectedGradeTeacher][selectedClassTeacher] || []).map((t, i) => (
-                  <li key={i} style={{ marginBottom: '5px' }}>{t}</li>
-                ))}
-              </ul>
-              {isEditing && (
-                <div style={{ marginTop: '10px', display: 'flex', gap: '5px' }}>
-                  <input type="text" id="newTeacherInput" placeholder="교사 이름 입력" style={{ flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                  <button onClick={() => {
-                    const input = document.getElementById('newTeacherInput');
-                    if (!input.value) return;
-                    const updated = {...teacherData};
-                    const list = updated[selectedDeptTeacher][selectedGradeTeacher][selectedClassTeacher] || [];
-                    updated[selectedDeptTeacher][selectedGradeTeacher][selectedClassTeacher] = [...list, input.value];
-                    setTeacherData(updated);
-                    input.value = '';
-                  }} style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>추가</button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 학생 탭 */}
-        {activeTab === 'student' && (
-          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h2 style={{ margin: 0, color: '#4c1d95', fontSize: '18px' }}>🎓 학생 명단 관리</h2>
-              <button onClick={() => handleEditClick('student')} style={{ padding: '6px 12px', background: isEditing ? '#dc2626' : '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                {isEditing ? '수정 완료' : '수정 (비밀번호)'}
-              </button>
-            </div>
-
-            {/* 부서 선택 */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <button onClick={() => setSelectedDeptStudent('middle')} style={{ flex: 1, padding: '8px', background: selectedDeptStudent === 'middle' ? '#7c3aed' : '#eee', color: selectedDeptStudent === 'middle' ? '#fff' : '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>중등부</button>
-              <button onClick={() => setSelectedDeptStudent('high')} style={{ flex: 1, padding: '8px', background: selectedDeptStudent === 'high' ? '#7c3aed' : '#eee', color: selectedDeptStudent === 'high' ? '#fff' : '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>고등부</button>
-            </div>
-
-            {/* 학년 선택 */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '15px' }}>
-              {['1', '2', '3'].map((grade) => (
-                <button key={grade} onClick={() => { setSelectedGradeStudent(grade); setSelectedClassStudent(`${grade}-1`); }} style={{ flex: 1, padding: '6px', background: selectedGradeStudent === grade ? '#ddd' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{grade}학년</button>
-              ))}
-            </div>
-
-            {/* 반 선택 및 동적 추가 드롭다운 */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '5px' }}>반 선택 / 추가:</label>
-              <select value={selectedClassStudent} onChange={(e) => {
-                const val = e.target.value;
-                if (val === '__add_new__') {
-                  const currentClasses = studentData[selectedDeptStudent][selectedGradeStudent].classes;
-                  const newClassName = `${selectedGradeStudent}-${currentClasses.length + 1}`;
-                  const updated = JSON.parse(JSON.stringify(studentData));
-                  updated[selectedDeptStudent][selectedGradeStudent].classes.push(newClassName);
-                  updated[selectedDeptStudent][selectedGradeStudent].students[newClassName] = [];
-                  setStudentData(updated);
-                  setSelectedClassStudent(newClassName);
-                } else {
-                  setSelectedClassStudent(val);
-                }
-              }} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}>
-                {(studentData[selectedDeptStudent][selectedGradeStudent].classes || []).map((cls) => (
-                  <option key={cls} value={cls}>{cls}반</option>
-                ))}
-                {isEditing && <option value="__add_new__" style={{ color: '#7c3aed', fontWeight: 'bold' }}>+ 반 추가하기</option>}
-              </select>
-            </div>
-
-            {/* 학생 명단 */}
-            <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '10px' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#333' }}>{selectedClassStudent}반 학생 명단</h4>
-              <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                {(studentData[selectedDeptStudent][selectedGradeStudent].students[selectedClassStudent] || []).map((s, i) => (
-                  <li key={i} style={{ marginBottom: '5px' }}>{s}</li>
-                ))}
-              </ul>
-              {isEditing && (
-                <div style={{ marginTop: '10px', display: 'flex', gap: '5px' }}>
-                  <input type="text" id="newStudentInput" placeholder="학생 이름 입력" style={{ flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                  <button onClick={() => {
-                    const input = document.getElementById('newStudentInput');
-                    if (!input.value) return;
-                    const updated = JSON.parse(JSON.stringify(studentData));
-                    const list = updated[selectedDeptStudent][selectedGradeStudent].students[selectedClassStudent] || [];
-                    updated[selectedDeptStudent][selectedGradeStudent].students[selectedClassStudent] = [...list, input.value];
-                    setStudentData(updated);
-                    input.value = '';
-                  }} style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>추가</button>
-                </div>
-              )}
-            </div>
-          </div>
+  return (
+    <div className="class-row">
+      <div className="class-row-head">
+        <span className="badge">{cls}</span>
+        {isEditing && (
+          <button type="button" className="text-btn danger" onClick={onRemoveClass}>반 삭제</button>
         )}
       </div>
-
-      {/* 비밀번호 인증 모달 */}
-      {showPasswordModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', width: '80%', maxWidth: '300px', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-            <h3 style={{ margin: '0 0 10px', color: '#4c1d95', fontSize: '16px' }}>관리자 인증</h3>
-            <p style={{ margin: '0 0 15px', fontSize: '13px', color: '#666' }}>수정하려면 관리자 비밀번호를 입력하세요.</p>
-            <form onSubmit={handlePasswordSubmit}>
-              <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="비밀번호" autoFocus aria-label="관리자 비밀번호" style={{ width: '100%', padding: '10px', marginBottom: '12px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '6px', textAlign: 'center' }} />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" onClick={() => { setShowPasswordModal(false); setPasswordInput(''); }} style={{ flex: 1, padding: '8px', background: '#eee', color: '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>취소</button>
-                <button type="submit" style={{ flex: 1, padding: '8px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>확인</button>
-              </div>
-            </form>
-          </div>
+      {students.length ? (
+        <div className="chips">
+          {students.map((s, i) => (
+            <span key={`${s}-${i}`} className="chip">
+              {s}
+              {isEditing && (
+                <button type="button" onClick={() => onRemoveStudent(i)} aria-label={`${s} 삭제`}>
+                  <Icon name="x" size={12} />
+                </button>
+              )}
+            </span>
+          ))}
         </div>
+      ) : (
+        <div className="empty" style={{ fontSize: 12 }}>등록된 학생이 없습니다.</div>
+      )}
+      {isEditing && (
+        <form className="inline-add" onSubmit={submit}>
+          <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder={`${grade}학년 ${cls}반 학생 이름`} aria-label={`${cls}반 학생 추가`} />
+          <button type="submit" className="btn">추가</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function StudentTab({ data, setData, isEditing, onEdit }) {
+  const [dept, setDept] = useState('middle');
+  const [query, setQuery] = useState('');
+  const deptLabel = DEPTS.find((d) => d.key === dept).label;
+  const q = query.trim().toLowerCase();
+
+  const setGrade = (grade, value) => setData({ ...data, [dept]: { ...data[dept], [grade]: value } });
+
+  return (
+    <>
+      <SectionHead title="학생 명단" subtitle="우리 부서 학생들을 확인하세요" isEditing={isEditing} onEdit={onEdit} />
+      <DeptToggle value={dept} onChange={setDept} />
+      <div className="search">
+        <Icon name="search" />
+        <input className="field" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="학생 이름 또는 반(예: 1-1) 검색..." aria-label="학생 검색" />
+      </div>
+
+      {GRADES.map((grade) => {
+        const classes = data[dept][grade];
+        const visible = Object.entries(classes)
+          .map(([cls, students]) => [cls, q && !cls.includes(q) ? students.filter((s) => s.toLowerCase().includes(q)) : students])
+          .filter(([cls, students]) => !q || cls.includes(q) || students.length);
+        const total = visible.reduce((n, [, s]) => n + s.length, 0);
+
+        return (
+          <section key={grade} className="card student-card">
+            <h3>{`${deptLabel} ${grade}학년`}</h3>
+            {total === 0 && !isEditing ? (
+              <div className="empty">{q ? '검색 결과가 없습니다.' : '등록된 학생이 없습니다.'}</div>
+            ) : (
+              visible.map(([cls, students]) => (
+                <StudentClassRow
+                  key={cls}
+                  grade={grade}
+                  cls={cls}
+                  students={students}
+                  isEditing={isEditing}
+                  onAdd={(name) => setGrade(grade, { ...classes, [cls]: [...classes[cls], name] })}
+                  onRemoveStudent={(idx) => setGrade(grade, { ...classes, [cls]: classes[cls].filter((_, i) => i !== idx) })}
+                  onRemoveClass={() => {
+                    const { [cls]: _removed, ...rest } = classes;
+                    setGrade(grade, rest);
+                  }}
+                />
+              ))
+            )}
+            {isEditing && (
+              <button type="button" className="text-btn" style={{ marginTop: 12 }} onClick={() => setGrade(grade, { ...classes, [nextClassName(grade, classes)]: [] })}>
+                + 반 추가
+              </button>
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function PasswordModal({ onClose, onSuccess }) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (value === ADMIN_PASSWORD) {
+      onSuccess();
+    } else {
+      setError('비밀번호가 올바르지 않습니다.');
+      setValue('');
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="card modal" role="dialog" aria-modal="true" aria-labelledby="pw-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="pw-title">관리자 인증</h3>
+        <p>수정하려면 관리자 비밀번호를 입력하세요.</p>
+        <form onSubmit={submit}>
+          <input className="field" type="password" inputMode="numeric" value={value} onChange={(e) => { setValue(e.target.value); setError(''); }} placeholder="비밀번호" autoFocus aria-label="관리자 비밀번호" />
+          <p className="error" role="alert">{error}</p>
+          <div className="row">
+            <button type="button" className="btn ghost" onClick={onClose}>취소</button>
+            <button type="submit" className="btn">확인</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { key: 'worship', label: '주일 예배' },
+  { key: 'teacher', label: '교사' },
+  { key: 'student', label: '학생' },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('worship');
+  const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  const [worshipData, setWorshipData] = useState({ theme: '', hymns: '', sermon: '', announcement: '', instagram: '' });
+  const [teacherData, setTeacherData] = useState(initialTeachers);
+  const [studentData, setStudentData] = useState(initialStudents);
+
+  const handleEdit = () => (isEditing ? setIsEditing(false) : setShowPasswordModal(true));
+  const tabProps = { isEditing, onEdit: handleEdit };
+
+  return (
+    <div className="app">
+      <header className="header">
+        <h1><span className="year">2026</span>수원 파워웨이브</h1>
+        <p>청소년부 커뮤니티</p>
+      </header>
+
+      <nav className="tabs" aria-label="메인 메뉴">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`seg${activeTab === t.key ? ' active' : ''}`}
+            aria-current={activeTab === t.key ? 'page' : undefined}
+            onClick={() => { setActiveTab(t.key); setIsEditing(false); }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <main className="content">
+        {activeTab === 'worship' && <WorshipTab data={worshipData} setData={setWorshipData} {...tabProps} />}
+        {activeTab === 'teacher' && <TeacherTab data={teacherData} setData={setTeacherData} {...tabProps} />}
+        {activeTab === 'student' && <StudentTab data={studentData} setData={setStudentData} {...tabProps} />}
+      </main>
+
+      {showPasswordModal && (
+        <PasswordModal
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={() => { setIsEditing(true); setShowPasswordModal(false); }}
+        />
       )}
     </div>
   );
