@@ -19,6 +19,10 @@ const ICON_PATHS = {
   x: 'M18 6 6 18M6 6l12 12',
   plus: 'M12 5v14M5 12h14',
   check: 'M20 6 9 17l-5-5',
+  trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6',
+  image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
+  save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
+  external: 'M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6',
 };
 
 function Icon({ name, size = 16 }) {
@@ -51,7 +55,7 @@ function SectionHead({ title, subtitle, isEditing, onEdit }) {
         <h2>{title}</h2>
         <p>{subtitle}</p>
       </div>
-      <button type="button" className={`edit-btn${isEditing ? ' on' : ''}`} onClick={onEdit}>
+      <button type="button" className={`edit-btn${isEditing ? ' on' : ''}`} onClick={onEdit} disabled={!onEdit}>
         <Icon name={isEditing ? 'check' : 'edit'} size={14} />
         {isEditing ? '완료' : '수정'}
       </button>
@@ -83,73 +87,206 @@ function InfoCard({ icon, label, accent, children }) {
   );
 }
 
-function WorshipTab({ data, setData, isEditing, onEdit }) {
-  const update = (key) => (e) => setData({ ...data, [key]: e.target.value });
-  const hymns = data.hymns.split('\n').map((h) => h.trim()).filter(Boolean);
-  const instagramHref = /^https?:\/\//.test(data.instagram) ? data.instagram : `https://${data.instagram}`;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const toHref = (url) => (/^https?:\/\//.test(url) ? url : `https://${url}`);
+const youtubeId = (url) => url.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/|live\/)([\w-]{11})/)?.[1] ?? null;
+const bibleSearchHref = (passage) => `https://www.google.com/search?q=${encodeURIComponent(`개역개정 ${passage}`)}`;
+
+export const emptyWorship = () => ({ theme: '', hymns: [], passage: '', sermon: '', announcement: '', instagram: '', bread: '' });
+
+function WorshipView({ data }) {
+  return (
+    <div className="stack">
+      <InfoCard icon="book" label="주제" accent="#7e57c2">
+        <div className="value lg">{data.theme || '등록된 주제가 없습니다.'}</div>
+      </InfoCard>
+
+      <InfoCard icon="play" label="찬양" accent="#ec4899">
+        {data.hymns.length ? (
+          <ul className="yt-list">
+            {data.hymns.map((url, i) => {
+              const id = youtubeId(url);
+              return (
+                <li key={`${url}-${i}`}>
+                  <a className="yt-item" href={toHref(url)} target="_blank" rel="noopener noreferrer">
+                    {id ? (
+                      <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="" className="yt-thumb" />
+                    ) : (
+                      <span className="yt-thumb fallback"><Icon name="play" size={20} /></span>
+                    )}
+                    <span className="yt-meta">
+                      <span className="yt-title">{`찬양 ${i + 1}`}</span>
+                      <span className="yt-url">{url}</span>
+                    </span>
+                    <Icon name="external" size={14} />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="empty">등록된 찬양이 없습니다.</div>
+        )}
+      </InfoCard>
+
+      <InfoCard icon="mic" label="말씀" accent="#60a5fa">
+        {data.passage && (
+          <a className="passage-chip" href={bibleSearchHref(data.passage)} target="_blank" rel="noopener noreferrer">
+            <Icon name="book" size={13} />
+            {data.passage}
+          </a>
+        )}
+        {data.sermon ? (
+          <div className="value pre">{data.sermon}</div>
+        ) : (
+          !data.passage && <div className="value" style={{ fontSize: 14 }}>등록된 말씀 요약이 없습니다.</div>
+        )}
+      </InfoCard>
+
+      <InfoCard icon="message" label="광고" accent="#4ade80">
+        <div className="inner-box pre">{data.announcement || '이번 주 광고가 없습니다.'}</div>
+      </InfoCard>
+
+      <InfoCard icon="instagram" label="파워웨이브 인스타" accent="#a855f7">
+        {data.instagram ? (
+          <a className="link" href={toHref(data.instagram)} target="_blank" rel="noopener noreferrer">{data.instagram}</a>
+        ) : (
+          <div className="empty">등록된 인스타그램 링크가 없습니다.</div>
+        )}
+      </InfoCard>
+
+      <InfoCard icon="image" label="말씀식빵" accent="#fb923c">
+        {data.bread ? (
+          <img src={data.bread} alt="이번 주 말씀식빵" className="bread-img" />
+        ) : (
+          <div className="empty">이번 주 말씀식빵 이미지가 없습니다.</div>
+        )}
+      </InfoCard>
+    </div>
+  );
+}
+
+function WorshipForm({ data, onSave, onCancel }) {
+  const [draft, setDraft] = useState(() => ({ ...data, hymns: data.hymns.length ? data.hymns : [''] }));
+  const [imageError, setImageError] = useState('');
+  const update = (key) => (e) => setDraft({ ...draft, [key]: e.target.value });
+  const setHymn = (idx, value) => setDraft({ ...draft, hymns: draft.hymns.map((h, i) => (i === idx ? value : h)) });
+  const removeHymn = (idx) => setDraft({ ...draft, hymns: draft.hymns.filter((_, i) => i !== idx) });
+
+  const onImage = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setImageError('이미지 파일만 업로드할 수 있습니다.');
+    if (file.size > MAX_IMAGE_BYTES) return setImageError('5MB 이하의 이미지만 업로드할 수 있습니다.');
+    setImageError('');
+    const reader = new FileReader();
+    reader.onload = () => setDraft((d) => ({ ...d, bread: reader.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    onSave({ ...draft, hymns: draft.hymns.map((h) => h.trim()).filter(Boolean) });
+  };
 
   return (
-    <>
-      <SectionHead title="이번 주 예배" subtitle="하나님을 알아가는 믿음의 성장" isEditing={isEditing} onEdit={onEdit} />
-      <div className="stack">
-        <InfoCard icon="book" label="주제" accent="#7e57c2">
-          {isEditing ? (
-            <input className="field" value={data.theme} onChange={update('theme')} placeholder="이번 주 예배 주제" aria-label="주제" />
-          ) : data.theme ? (
-            <div className="value lg">{data.theme}</div>
-          ) : (
-            <div className="value lg">등록된 주제가 없습니다.</div>
-          )}
-        </InfoCard>
+    <form className="card form-card" onSubmit={submit}>
+      <label className="form-field">
+        <span className="form-label">예배 주제</span>
+        <input className="field" value={draft.theme} onChange={update('theme')} placeholder="예) 구원의 확신" />
+      </label>
 
-        <InfoCard icon="play" label="찬양" accent="#ec4899">
-          {isEditing ? (
-            <>
-              <textarea className="field" value={data.hymns} onChange={update('hymns')} placeholder={'찬양 제목을 한 줄에 하나씩 입력하세요'} aria-label="찬양" />
-              <div className="hint">한 줄에 한 곡씩 입력하세요.</div>
-            </>
-          ) : hymns.length ? (
-            <ol className="hymn-list">
-              {hymns.map((h, i) => (
-                <li key={`${h}-${i}`}>
-                  <span className="num">{i + 1}</span>
-                  {h}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <div className="empty">등록된 찬양이 없습니다.</div>
-          )}
-        </InfoCard>
-
-        <InfoCard icon="mic" label="말씀" accent="#60a5fa">
-          {isEditing ? (
-            <textarea className="field" value={data.sermon} onChange={update('sermon')} placeholder="본문 및 말씀 요약" aria-label="말씀" />
-          ) : data.sermon ? (
-            <div className="value">{data.sermon}</div>
-          ) : (
-            <div className="value" style={{ fontSize: 14 }}>등록된 말씀 요약이 없습니다.</div>
-          )}
-        </InfoCard>
-
-        <InfoCard icon="message" label="광고" accent="#4ade80">
-          {isEditing ? (
-            <textarea className="field" value={data.announcement} onChange={update('announcement')} placeholder="이번 주 광고" aria-label="광고" />
-          ) : (
-            <div className="inner-box">{data.announcement || '이번 주 광고가 없습니다.'}</div>
-          )}
-        </InfoCard>
-
-        <InfoCard icon="instagram" label="파워웨이브 인스타" accent="#a855f7">
-          {isEditing ? (
-            <input className="field" value={data.instagram} onChange={update('instagram')} placeholder="https://instagram.com/..." aria-label="인스타그램 링크" />
-          ) : data.instagram ? (
-            <a className="link" href={instagramHref} target="_blank" rel="noopener noreferrer">{data.instagram}</a>
-          ) : (
-            <div className="empty">등록된 인스타그램 링크가 없습니다.</div>
-          )}
-        </InfoCard>
+      <div className="form-field">
+        <span className="form-label">찬양 (유튜브 링크)</span>
+        {draft.hymns.map((url, i) => (
+          <div className="input-row" key={i}>
+            <input className="field" type="url" inputMode="url" value={url} onChange={(e) => setHymn(i, e.target.value)} placeholder="https://youtu.be/..." aria-label={`찬양 ${i + 1} 링크`} />
+            <button type="button" className="trash-btn" onClick={() => removeHymn(i)} aria-label={`찬양 ${i + 1} 삭제`}>
+              <Icon name="trash" size={18} />
+            </button>
+          </div>
+        ))}
+        <button type="button" className="add-link" onClick={() => setDraft({ ...draft, hymns: [...draft.hymns, ''] })}>
+          <Icon name="plus" size={15} />
+          찬양 링크 추가
+        </button>
       </div>
+
+      <div className="form-field">
+        <label className="form-label" htmlFor="passage">말씀 본문 (성경 찾기)</label>
+        <div className="input-row">
+          <input id="passage" className="field" value={draft.passage} onChange={update('passage')} placeholder="예) 창세기 1장~3장" />
+          <a
+            className={`find-btn${draft.passage.trim() ? '' : ' disabled'}`}
+            href={draft.passage.trim() ? bibleSearchHref(draft.passage.trim()) : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={!draft.passage.trim()}
+          >
+            <Icon name="search" size={15} />
+            찾기
+          </a>
+        </div>
+      </div>
+
+      <label className="form-field">
+        <span className="form-label">말씀 내용 요약</span>
+        <textarea className="field" value={draft.sermon} onChange={update('sermon')} placeholder="설교 본문이나 요약을 적어주세요." />
+      </label>
+
+      <label className="form-field">
+        <span className="form-label">광고 및 공지</span>
+        <textarea className="field" value={draft.announcement} onChange={update('announcement')} placeholder="이번 주 광고 사항을 적어주세요." />
+      </label>
+
+      <label className="form-field">
+        <span className="form-label">파워웨이브 인스타 (링크)</span>
+        <input className="field" type="url" inputMode="url" value={draft.instagram} onChange={update('instagram')} placeholder="https://instagram.com/..." />
+      </label>
+
+      <div className="form-field">
+        <span className="form-label">말씀식빵 (이미지 업로드)</span>
+        {draft.bread ? (
+          <div className="upload-preview">
+            <img src={draft.bread} alt="말씀식빵 미리보기" />
+            <button type="button" className="trash-btn floating" onClick={() => setDraft({ ...draft, bread: '' })} aria-label="이미지 삭제">
+              <Icon name="trash" size={16} />
+            </button>
+          </div>
+        ) : (
+          <label className="upload">
+            <Icon name="image" size={26} />
+            클릭하여 이미지 업로드
+            <input type="file" accept="image/*" className="sr-only" onChange={onImage} />
+          </label>
+        )}
+        {imageError && <p className="error" role="alert">{imageError}</p>}
+      </div>
+
+      <div className="form-actions">
+        <button type="button" className="btn ghost" onClick={onCancel}>
+          <Icon name="x" size={15} />
+          취소
+        </button>
+        <button type="submit" className="btn">
+          <Icon name="save" size={15} />
+          저장하기
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function WorshipTab({ data, setData, isEditing, onEdit, onDone }) {
+  return (
+    <>
+      <SectionHead title="이번 주 예배" subtitle="하나님을 알아가는 믿음의 성장" isEditing={false} onEdit={isEditing ? undefined : onEdit} />
+      {isEditing ? (
+        <WorshipForm data={data} onCancel={onDone} onSave={(next) => { setData(next); onDone(); }} />
+      ) : (
+        <WorshipView data={data} />
+      )}
     </>
   );
 }
@@ -183,7 +320,7 @@ function TeacherTab({ data, setData, isEditing, onEdit }) {
                     <button type="button" className="icon-btn" onClick={() => removeClass(grade, cls)} aria-label={`${cls}반 삭제`}>
                       <Icon name="x" size={14} />
                     </button>
-                    <input className="field" style={{ marginTop: 12, textAlign: 'center' }} value={teacher} onChange={(e) => setClass(grade, cls, e.target.value)} placeholder="교사 이름" aria-label={`${cls}반 담당 교사`} />
+                    <input className="field" style={{ marginTop: 12, textAlign: 'center' }} value={teacher} onChange={(e) => setClass(grade, cls, e.target.value)} placeholder="교사 이름" aria-label={`${cls}반 ���당 교사`} />
                   </>
                 ) : (
                   <div className={`teacher-name${teacher ? '' : ' vacant'}`}>
@@ -349,20 +486,38 @@ const TABS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('worship');
   const [isEditing, setIsEditing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const [worshipData, setWorshipData] = useState({ theme: '', hymns: '', sermon: '', announcement: '', instagram: '' });
+  const [worshipData, setWorshipData] = useState(emptyWorship);
   const [teacherData, setTeacherData] = useState(initialTeachers);
   const [studentData, setStudentData] = useState(initialStudents);
 
-  const handleEdit = () => (isEditing ? setIsEditing(false) : setShowPasswordModal(true));
-  const tabProps = { isEditing, onEdit: handleEdit };
+  const handleEdit = () => {
+    if (isEditing) setIsEditing(false);
+    else if (isAdmin) setIsEditing(true);
+    else setShowPasswordModal(true);
+  };
+  const tabProps = { isEditing, onEdit: handleEdit, onDone: () => setIsEditing(false) };
 
   return (
     <div className="app">
       <header className="header">
-        <h1><span className="year">2026</span>수원 파워웨이브</h1>
-        <p>청소년부 커뮤니티</p>
+        <div>
+          <h1><span className="year">2026</span>수원 파워웨이브</h1>
+          <p>청소년부 커뮤니티</p>
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            className="admin-badge"
+            onClick={() => { setIsAdmin(false); setIsEditing(false); }}
+            title="눌러서 관리자 모드 끄기"
+            aria-label="관리자 모드 켜짐, 눌러서 끄기"
+          >
+            관리자 모드<b>ON</b>
+          </button>
+        )}
       </header>
 
       <nav className="tabs" aria-label="메인 메뉴">
@@ -388,7 +543,7 @@ export default function App() {
       {showPasswordModal && (
         <PasswordModal
           onClose={() => setShowPasswordModal(false)}
-          onSuccess={() => { setIsEditing(true); setShowPasswordModal(false); }}
+          onSuccess={() => { setIsAdmin(true); setIsEditing(true); setShowPasswordModal(false); }}
         />
       )}
     </div>
